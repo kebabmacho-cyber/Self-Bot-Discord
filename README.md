@@ -1,3 +1,5 @@
+for educational purposes only
+
 📁 How to set up the Self Bot
 
 1. Donwload bot.js
