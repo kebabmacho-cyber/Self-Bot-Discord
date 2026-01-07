@@ -18,4 +18,6 @@ for educational purposes only
 
 automatic status changes every 30 seconds 
 
+spam message every 5 seconds [ Do not use on public servers ]
+
 New update coming soon ...
