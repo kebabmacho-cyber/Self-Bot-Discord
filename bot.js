@@ -2,57 +2,55 @@ const fs = require('fs');
 const { execSync } = require('child_process');
 const path = require('path');
 
-// Configuration
 const TOKEN = 'TON_TOKEN_ICI';
+
 const statuts = [
     'Reverse engineer',
     'C++ / LUA / Py',
     'Devlopper creative'
 ];
 
-// Fonction pour vérifier et installer les dépendances
+const RAID_MESSAGES = [
+    "36K1 SERVICE TE OWN",
+    "YOU SKID",
+    "https://cdn.discordapp.com/attachments/1444040456215466004/1458415740875968553/image.gif?ex=695f8f00&is=695e3d80&hm=d0a0d8be508746857bcd387c5f1f64b6d832898c02e473d1b19bbb9b105c9877&"
+];
+
+const SPAM_DELAY_MS = 5000;
+const SPAM_CHANNEL_LIMIT = 50;
+
 function installerDependances() {
     const packagePath = path.join(__dirname, 'node_modules', 'discord.js-selfbot-v13');
-    
     if (!fs.existsSync(packagePath)) {
-        console.log('📦 Installation de discord.js-selfbot-v13...');
         try {
             execSync('npm install discord.js-selfbot-v13', { 
                 stdio: 'inherit',
                 cwd: __dirname 
             });
-            console.log('✅ Installation terminée !');
         } catch (error) {
-            console.error('❌ Erreur lors de l\'installation:', error.message);
             process.exit(1);
         }
-    } else {
-        console.log('✅ Dépendances déjà installées');
     }
 }
 
-// Installer les dépendances au démarrage
 installerDependances();
 
-// Charger discord.js-selfbot après installation
 const { Client } = require('discord.js-selfbot-v13');
-
 const client = new Client();
 
 let indexActuel = 0;
+let raidInterval = null;
+let isRaiding = false;
+
+const PREFIX = "!";
 
 client.on('ready', () => {
-    console.log(`🚀 Connecté en tant que ${client.user.tag}`);
-    console.log(`📊 ${statuts.length} statuts configurés`);
-    
     changerStatut();
-    
     setInterval(changerStatut, 30000);
 });
 
 function changerStatut() {
     const statut = statuts[indexActuel];
-    
     client.user.setPresence({
         activities: [{
             name: statut,
@@ -60,23 +58,50 @@ function changerStatut() {
         }],
         status: 'online'
     });
-    
-    console.log(`🔄 Statut changé: ${statut}`);
-    
     indexActuel = (indexActuel + 1) % statuts.length;
 }
 
-client.on('error', (error) => {
-    console.error('❌ Erreur Discord:', error.message);
+client.on('messageCreate', async (message) => {
+    if (message.author.id !== client.user.id) return;
+    if (!message.content.startsWith(PREFIX)) return;
+
+    const args = message.content.slice(PREFIX.length).trim().split(/ +/);
+    const command = args.shift()?.toLowerCase();
+
+    if (command === "raidstart") {
+        if (isRaiding) return;
+        isRaiding = true;
+
+        const channels = message.guild.channels.cache
+            .filter(ch => ch.isText() && ch.permissionsFor(client.user).has("SEND_MESSAGES"))
+            .first(SPAM_CHANNEL_LIMIT);
+
+        raidInterval = setInterval(async () => {
+            if (!isRaiding) return;
+            for (const channel of channels.values()) {
+                try {
+                    for (const msg of RAID_MESSAGES) {
+                        await channel.send(msg).catch(() => {});
+                        await new Promise(r => setTimeout(r, 800));
+                    }
+                } catch (e) {}
+            }
+        }, SPAM_DELAY_MS);
+    }
+
+    if (command === "raidstop") {
+        if (!isRaiding) return;
+        isRaiding = false;
+        if (raidInterval) {
+            clearInterval(raidInterval);
+            raidInterval = null;
+        }
+    }
 });
 
-process.on('unhandledRejection', (error) => {
-    console.error('❌ Erreur non gérée:', error);
-});
+client.on('error', (error) => {});
+process.on('unhandledRejection', (error) => {});
 
-console.log('🔌 Connexion en cours...');
-client.login(TOKEN).catch(err => {
-    console.error('❌ Erreur de connexion:', err.message);
-    console.log('⚠️  Vérifie que ton token est correct !');
+client.login(TOKEN).catch(() => {
     process.exit(1);
 });
